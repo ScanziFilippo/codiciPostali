@@ -30,12 +30,27 @@ else{
 $ct=$_SERVER["CONTENT_TYPE"];
 $type=explode("/",$ct);
 
-$retct=$_SERVER["HTTP_ACCEPT"];
-$ret=explode("/",$retct);
-//echo $type[1];
+$acceptType=$_SERVER["HTTP_ACCEPT"];
+$ret=explode("/",$acceptType);
 //print_r($uri);
 //echo "metodo-->".$metodo;
 
+$requestData = file_get_contents('php://input');
+
+// Determina il formato dei dati (JSON o XML)
+if ($acceptType === 'application/json') {
+    $requestData = json_decode($requestData, true);
+} elseif ($acceptType === 'application/xml') {
+    $requestData = simplexml_load_string($requestData);
+} else {
+    // Tipo di contenuto non valido
+    http_response_code(415);
+    echo 'Tipo di contenuto non valido';
+    exit;
+}
+
+
+$risposta = null;
 if ($metodo=="GET"){  
     $conn = new mysqli('localhost', 'root', '', 'codici_postali');
     if ($conn->connect_error) {
@@ -44,11 +59,11 @@ if ($metodo=="GET"){
 
     // Estrai il parametro dal percorso dell'URL
     $urlPath = explode('/', $_SERVER['REQUEST_URI']);
-    $parametro = $urlPath[2] ?? null;
-    $valore = $urlPath[3] ?? null;
+    $parametro = $urlPath[3] ?? null;
+    $valore = $urlPath[4] ?? null;
 
     // Controllo sul secondo parametro e preparazione della query SQL
-    if ($parametro === 'CAP' && !empty($valore)) {
+    if ($parametro === 'cap' && !empty($valore)) {
         $valore = $conn->real_escape_string($valore); // Prevenire SQL Injection
         $query = "SELECT comune FROM comuni WHERE cap = '$valore'";
     } elseif ($parametro === 'comune' && !empty($valore)) {
@@ -68,46 +83,58 @@ if ($metodo=="GET"){
     if ($result->num_rows > 0) {
         // Stampa i dati
         while ($row = $result->fetch_assoc()) {
-            echo $row;
+            $response[] = $row;
         }
     } else {
-        echo 'Nessun risultato (database vuoto)';
+        $response = ['message' => 'Nessun risultato (database vuoto)'];
     }
 
     // Chiudi la connessione
     $conn->close();
+
+    $risposta = $response;
 }
 if ($metodo=="POST"){
-    echo "post\n";
-    //recupera i dati dall'header
-   $body=file_get_contents('php://input');
-   // echo $bodys
-   
-   //converte in array associativo
-    if ($type[1]=="json"){
-        $data = json_decode($body,true);
+    echo "post";
+    $urlPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    if ($urlPath !== '/wsphp/ADD') {
+        http_response_code(400);
+        $risposta = ['status' => 'errore', 'message' => 'URL non valido'];
     }
-    if ($type[1]=="xml"){
-        $xml = simplexml_load_string($body);
-        $json = json_encode($xml);
-        $data = json_decode($json, true);
-    }
-    
-    //elabora i dati o interagisce con il database
-    $data["valore"]+=2000;
-    
-    //settaggio dei campi dell'header
-    header("Content-Type: ".$retct);    
-    //restituisce i dati convertiti nel formato richiesto
-    if ($ret[1]=="json"){
-        echo json_encode($data);
-    }
-    if ($ret[1]=="xml"){
-        $xml = new SimpleXMLElement('<root/>');
-        array_walk_recursive($data, array ($xml, 'addChild'));    
-        echo $xml->asXML();
-        //alternativa
-        $r='<?xml version="1.0"?><rec><nome>'.$data["nome"].'</nome><valore>'.$data["valore"].'</valore></rec>';
+
+    // Convalida i dati
+    if (isset($requestData['cap']) && isset($requestData['comune'])) {
+        // Inserisci i dati nel database
+        $cap = $requestData['cap'];
+        $comune = $requestData['comune'];
+
+        // Crea una connessione al database
+        $conn = new mysqli('localhost', 'root', '', 'codici_postali');
+
+        // Controlla la connessione
+        if ($conn->connect_error) {
+            die('Connessione fallita: ' . $conn->connect_error);
+        }
+
+        // Query SQL per inserire i dati
+        $query = "INSERT INTO comuni (cap, comune) VALUES ('$cap', '$comune')";
+
+        // Esegui la query
+        if ($conn->query($query) === TRUE) {
+            // Imposta i dati di risposta
+            $responseData = ['cap' => $cap, 'comune' => $comune];
+        } else {
+            $responseData = ['status' => 'errore', 'message' => 'Errore: ' . $query . '<br>' . $conn->error];
+        }
+
+        // Chiudi la connessione
+        $conn->close();
+
+        $risposta = $responseData;
+    } else {
+        // Dati non validi
+        http_response_code(400);
+        $risposta = ['status' => 'errore', 'message' => 'Dati non validi'];
     }
 }
 if ($metodo=="PUT"){
@@ -118,6 +145,40 @@ if ($metodo=="PUT"){
 if ($metodo=="DELETE"){
     echo "delete";
     http_response_code(404);
+}
+// Funzione per convertire un array in formato XML
+function xml_encode($data) {
+    $xml = new SimpleXMLElement('<root/>');
+    array_to_xml($data, $xml);
+    return $xml->asXML();
+}
+
+// Funzione ricorsiva per convertire un array in formato XML
+function array_to_xml($data, &$xml) {
+    foreach ($data as $key => $value) {
+        if (is_array($value)) {
+            if (is_numeric($key)) {
+                $key = 'item' . $key;
+            }
+            $subnode = $xml->addChild($key);
+            array_to_xml($value, $subnode);
+        } else {
+            $xml->addChild("$key", htmlspecialchars("$value"));
+        }
+    }
+}
+// Formatta la risposta in base al tipo di contenuto accettato
+if ($acceptType === 'application/json') {
+    header('Content-Type: application/json');
+    echo json_encode($risposta);
+} elseif ($acceptType === 'application/xml') {
+    header('Content-Type: application/xml');
+    echo xml_encode($risposta); 
+} else {
+    // Tipo di contenuto non accettato
+    http_response_code(406);
+    echo 'Tipo di contenuto non accettato';
+    exit;
 }
 }
 

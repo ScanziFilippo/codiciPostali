@@ -2,8 +2,12 @@
 RewriteEngine on
 
 # Redireziona tutte le richieste a index.php
-RewriteRule ^(.*)$ index.php [QSA]
 
+
+RewriteBase /codiciPostali/
+
+RewriteCond %{REQUEST_URI} !^/index.php
+RewriteRule ^([^/]+)$ index.php [L]
 #Changing: RewriteRule ^ /%1 [NC,L,R]
 
 #to
