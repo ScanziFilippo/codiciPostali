@@ -138,13 +138,89 @@ if ($metodo=="POST"){
     }
 }
 if ($metodo=="PUT"){
-    echo "put";
-    //codice di risposta
-    http_response_code(404);
+    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $uriParts = explode( '/', $uri );
+
+    // Verifica che il terzo parametro sia "EDIT" e che il quarto parametro sia presente
+    if ($uriParts[3] !== 'edit' || !isset($uriParts[4])) {
+        http_response_code(400);
+        $risposta = ['status' => 'errore', 'message' => 'URL non valido'];
+    }
+
+    // Usa il quarto parametro come "codicePostale"
+    $comune = $uriParts[4];
+
+    // Convalida i dati
+    if (isset($requestData['cap'])) {
+        // Aggiorna i dati nel database
+        $cap = $requestData['cap'];
+
+        // Crea una connessione al database
+        $conn = new mysqli('localhost', 'root', '', 'codici_postali');
+
+        // Controlla la connessione
+        if ($conn->connect_error) {
+            die('Connessione fallita: ' . $conn->connect_error);
+        }
+
+        // Query SQL per aggiornare i dati
+        $query = "UPDATE comuni SET cap = '$cap' WHERE comune = '$comune'";
+
+        // Esegui la query
+        if ($conn->query($query) === TRUE) {
+            // Imposta i dati di risposta
+            $responseData = ['cap' => $cap, 'comune' => $comune];
+        } else {
+            $responseData = ['status' => 'errore', 'message' => 'Errore: ' . $query . '<br>' . $conn->error];
+        }
+
+        // Chiudi la connessione
+        $conn->close();
+
+        $risposta = $responseData;
+    } else {
+        // Dati non validi
+        http_response_code(400);
+        $risposta = ['status' => 'errore', 'message' => 'Dati non validi'];
+    }
 }
 if ($metodo=="DELETE"){
-    echo "delete";
-    http_response_code(404);
+    // Ottieni l'URI e dividilo in parti
+    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $uriParts = explode( '/', $uri );
+
+    // Verifica che il terzo parametro sia "DEL" e che il quarto parametro sia presente
+    if ($uriParts[3] !== 'delete' || !isset($uriParts[4])) {
+        http_response_code(400);
+        $risposta = ['status' => 'errore', 'message' => 'URL non valido'];
+    }
+
+    // Usa il quarto parametro come "codicePostale"
+    $comune = $uriParts[4];
+
+    // Crea una connessione al database
+    $conn = new mysqli('localhost', 'root', '', 'codici_postali');
+
+    // Controlla la connessione
+    if ($conn->connect_error) {
+        die('Connessione fallita: ' . $conn->connect_error);
+    }
+
+    // Query SQL per eliminare i dati
+    $query = "DELETE FROM comuni WHERE comune = '$comune'";
+
+    // Esegui la query
+    if ($conn->query($query) === TRUE) {
+        // Imposta i dati di risposta
+        $responseData = ['status' => 'successo', 'message' => 'Dato eliminato con successo'];
+    } else {
+        $responseData = ['status' => 'errore', 'message' => 'Errore: ' . $query . '<br>' . $conn->error];
+    }
+
+    // Chiudi la connessione
+    $conn->close();
+
+    $risposta = $responseData;
 }
 // Funzione per convertire un array in formato XML
 function xml_encode($data) {
