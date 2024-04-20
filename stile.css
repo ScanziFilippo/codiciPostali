@@ -9,3 +9,9 @@ div {
     background-color: #d6e6ff;
     padding: 20px;
 }
+table {
+    border-collapse: collapse;
+}
+td, th{
+    padding: 5px;
+}

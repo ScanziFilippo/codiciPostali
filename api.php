@@ -97,10 +97,10 @@ if ($metodo=="GET"){
 if ($metodo=="POST"){
     echo "post";
     $urlPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    if ($urlPath !== '/wsphp/ADD') {
+    /*if ($urlPath !== '/wsphp/ADD') {
         http_response_code(400);
         $risposta = ['status' => 'errore', 'message' => 'URL non valido'];
-    }
+    }*/
 
     // Convalida i dati
     if (isset($requestData['cap']) && isset($requestData['comune'])) {
