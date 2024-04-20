@@ -1,0 +1,11 @@
+body {
+    margin: 0;
+}
+h1 {
+    padding-left: 20px;
+}
+div {
+    padding-left: 20px;
+    background-color: #d6e6ff;
+    padding: 20px;
+}
