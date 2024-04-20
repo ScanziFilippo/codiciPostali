@@ -46,7 +46,14 @@
             xhr.setRequestHeader("Accept", "application/json");
             xhr.onreadystatechange = function(){
                 if(xhr.readyState == 4 && xhr.status == 200){
-                    document.getElementById("tabella").innerHTML = xhr.responseText;
+                    //document.getElementById("tabella").innerHTML = xhr.responseText;
+                    risposta = JSON.parse(xhr.responseText);
+                    console.log(risposta);
+                    if(a == "cap"){
+                        creaTabellaA(risposta);
+                    }else if(a == "comune"){
+                        creaTabellaB(risposta);
+                    }
                 }
             }
             xhr.send();
@@ -73,6 +80,22 @@
             for(var i = 0; i < dati.length; i++){
                 tabella.innerHTML += "<tr><td>" + dati[i].cap + "</td><td>"
                 + dati[i].comune + "</td></tr>";
+            }
+        }
+        function creaTabellaA(dati){
+            var tabella = document.getElementById("tabella");
+            tabella.innerHTML = "<tr><th>Cap</th><th>Comune</th></tr>";
+            for(var i = 0; i < dati.length; i++){
+                tabella.innerHTML += "<tr><td>" + document.getElementById("c_get").value + "</td><td>"
+                + dati[i].comune + "</td></tr>";
+            }
+        }
+        function creaTabellaB(dati){
+            var tabella = document.getElementById("tabella");
+            tabella.innerHTML = "<tr><th>Cap</th><th>Comune</th></tr>";
+            for(var i = 0; i < dati.length; i++){
+                tabella.innerHTML += "<tr><td>" + dati[i].cap + "</td><td>"
+                + document.getElementById("c_get").value + "</td></tr>";
             }
         }
         function post(){
